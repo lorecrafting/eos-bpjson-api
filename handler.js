@@ -15,7 +15,7 @@ const eos = EosApi({ httpEndpoint: EOS_API_ENDPOINT });
 const ERROR_PARSING_BP_JSON =
   "Error parsing bp.json - Either error with retrieval or formatting of bp.json";
 
-module.exports.cacheBlockProducerInfo = async (event, context, callback) => {
+module.exports.cacheBpJson = async (event, context, callback) => {
   try {
     const bpList = await eos.getProducers({ json: true });
     console.log("eos after executing", eos);
