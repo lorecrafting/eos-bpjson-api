@@ -16,7 +16,7 @@ provider:
 
 functions:
   cacheBlockProducerInfo:
-    handler: handler.saveName
+    handler: handler.cacheBlockProducerInfo
     environment: 
       EOS_API_ENDPOINT: 'https://api.eosnewyork.io:443'
       CHAIN_ID: 'aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906'
@@ -25,11 +25,14 @@ functions:
         name: daily block producer cache
         description: Make's api calls to retrieve bp.json from block producer's and caches in dynamoDB
         rate: rate(24 hours)
-        enabled: false
+        enabled: true
         input:
           key1: null
-  getProducers:
-    handler: handler.getProducers
+  getAllProducers:
+    handler: handler.getAllProducers
+    environment:
+      EOS_API_ENDPOINT: 'https://api.eosnewyork.io:443'
+      CHAIN_ID: 'aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906'
     events:
       - http:
           path: producers

@@ -12,7 +12,7 @@
     "serverless-plugin-include-dependencies": "^3.1.0"
   },
   "dependencies": {
-    "eosjs": "^15.0.3",
+    "eosjs-api": "^6.3.0",
     "request": "^2.87.0",
     "request-promise-native": "^1.0.5"
   }

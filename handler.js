@@ -1,66 +1,84 @@
 "use strict";
 
 // TODO: getProducers response should contain BPinfo that wasn't able to be fetched
-
-
-const AWS = require("aws-sdk");
-const request = require("request-promise-native");
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
-const eosjs = require("eosjs");
-
+// Include backup API endpoints to EOS network
+// Having trouble calling eos.getProducer's in the second lambda.  Function does not show up. eosjs-api works tho!
 const BLOCK_PRODUCER_TABLE = process.env.BLOCK_PRODUCER_TABLE;
 const EOS_API_ENDPOINT = process.env.EOS_API_ENDPOINT;
 const CHAIN_ID = process.env.CHAIN_ID;
 
-console.log("BLOCK_PRODUCER_TABLE", BLOCK_PRODUCER_TABLE);
+const AWS = require("aws-sdk");
+const request = require("request-promise-native");
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const EosApi = require("eosjs-api");
+const eos = EosApi({ httpEndpoint: EOS_API_ENDPOINT });
 
 const ERROR_PARSING_BP_JSON =
   "Error parsing bp.json - Either error with retrieval or formatting of bp.json";
 
 module.exports.cacheBlockProducerInfo = async (event, context, callback) => {
-  const eos = eosjs({
-    httpEndpoint: EOS_API_ENDPOINT,
-    chainId: CHAIN_ID
-  });
+  try {
+    const bpList = await eos.getProducers({ json: true });
+    console.log("eos after executing", eos);
+    const bpJsonFiles = await _reqBpJsonFiles(bpList.rows);
+    let response = {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*"
+      },
+      data: bpJsonFiles
+    };
+    callback(null, response);
+  } catch (e) {
+    console.log(e);
+  }
+};
 
-  const getProducersResponse = await eos.getProducers({ json: true });
-  console.log("getProducersREsponse", getProducersResponse.rows);
-  const reqList = getProducersResponse.rows.map(bp => {
-    const totalVotes = Number(bp.total_votes);
-    const endpoint = _appendToBaseUrl(bp.url, "bp.json");
+module.exports.getAllProducers = async (event, context, callback) => {
+  try {
+    const bpList = await eos.getProducers({ json: true });
+    const cachedBpJsonFiles = await _dynamoGetAll(BLOCK_PRODUCER_TABLE);
+    console.log("CachedBpJsonFiles", cachedBpJsonFiles);
+    console.log("BPList", bpList);
+  } catch (e) {
+    console.log(e);
+  }
+  console.log('BPTABLE', BLOCK_PRODUCER_TABLE)
+
+  dynamoDb
+    .scan({ TableName: BLOCK_PRODUCER_TABLE })
+    .promise()
+    .then(data => {
+      let response = {
+        isBase64Encoded: false,
+        statusCode: 200,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify(data)
+      };
+      callback(null, response);
+    })
+    .catch(err => {
+      console.log("Error retrieving records from DynamoDB: ", err);
+    });
+};
+
+async function _reqBpJsonFiles(bpList) {
+  const reqList = bpList.map(bp => {
+    const reqUrl = _joinHostResource(bp.url, "bp.json");
     const producerAccountName = bp.owner;
 
-    return request(endpoint)
+    return request(reqUrl)
       .then(data => {
         if (_isJsonString(data)) {
           const parsedData = JSON.parse(data);
-          parsedData.total_votes = totalVotes;
-          console.log("producerAccountName", producerAccountName);
-          console.log('query', BLOCK_PRODUCER_TABLE, producerAccountName, parsedData)
-          dynamoDb.put(
-            {
-              TableName: BLOCK_PRODUCER_TABLE,
-              Item: {
-                producer_account_name: producerAccountName,
-                data: JSON.stringify(parsedData)
-              }
-            },
-            err => {
-              if (err) {
-                console.log("error with dynamoDb.put", err);
-              } else {
-                console.log("dynamoDB put success!");
-              }
-            }
-          );
-
+          _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, parsedData);
           return parsedData;
         } else {
           const errorObject = {
             error: ERROR_PARSING_BP_JSON,
-            data
+            bpData: bp,
+            resData: data
           };
-
           return errorObject;
         }
       })
@@ -68,54 +86,59 @@ module.exports.cacheBlockProducerInfo = async (event, context, callback) => {
         console.log("Error: ", err);
       });
   });
+  return Promise.all(reqList);
+}
 
-  const responseList = await Promise.all(reqList);
-
-  let response = {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*"
-    },
-    data: responseList
-  };
-
-  callback(null, response);
-
-};
-
-module.exports.getProducers = (event, context, callback) => {
-  dynamoDb.scan({
-    TableName: BLOCK_PRODUCER_TABLE
-  }, (err, data) => {
-    if (err) {
-      console.log('Error retrieving records from DynamoDB: ', err)
-    } else {
-      let response = {
-        "isBase64Encoded": false,
-        "statusCode": 200,
-        "headers": { "Access-Control-Allow-Origin": "*" },
-        "body": JSON.stringify(data)
+function _dynamoPut(tableName, bpAccountName, data) {
+  return dynamoDb
+    .put({
+      TableName: tableName,
+      Item: {
+        producer_account_name: bpAccountName,
+        data: JSON.stringify(data)
       }
-      callback(null, response)
-    }
-  }) 
+    })
+    .promise()
+    .then(data => {
+      console.log("Dynamo Put success!", data);
+    })
+    .catch(err => {
+      console.log("Dynampdb.put Error: ", err);
+    });
+}
+
+async function _dynamoGetAll(tableName) {
+  return dynamoDb
+    .scan({ TableName: tableName })
+    .promise()
+    .then(data => {
+      let response = {
+        isBase64Encoded: false,
+        statusCode: 200,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify(data)
+      };
+    })
+    .catch(err => {
+      console.log("Error retrieving records from DynamoDB: ", err);
+    });
 }
 
 function _isJsonString(str) {
   try {
     JSON.parse(str);
-  } catch (e) {
+  } catch (err) {
     return false;
   }
   return true;
 }
 
-function _appendToBaseUrl(baseUrl, fragment) {
+function _joinHostResource(host, resource) {
   let endpoint;
-  if (baseUrl[baseUrl.length - 1] === "/") {
-    endpoint = baseUrl + fragment;
+  if (host[host.length - 1] === "/") {
+    endpoint = host + resource;
   } else {
-    endpoint = baseUrl + "/" + fragment;
+    endpoint = host + "/" + resource;
   }
   return endpoint;
 }
