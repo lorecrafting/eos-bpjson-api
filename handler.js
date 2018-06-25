@@ -1,8 +1,7 @@
 "use strict";
 
-// TODO: getProducers response should contain BPinfo that wasn't able to be fetched
-// Include backup API endpoints to EOS network
-// Having trouble calling eos.getProducer's in the second lambda.  Function does not show up. eosjs-api works tho!
+// TODO: Include multiple redundant API endpoints to EOS networks
+
 const BLOCK_PRODUCER_TABLE = process.env.BLOCK_PRODUCER_TABLE;
 const EOS_API_ENDPOINT = process.env.EOS_API_ENDPOINT;
 const CHAIN_ID = process.env.CHAIN_ID;
@@ -29,37 +28,34 @@ module.exports.cacheBlockProducerInfo = async (event, context, callback) => {
       data: bpJsonFiles
     };
     callback(null, response);
-  } catch (e) {
-    console.log(e);
+  } catch (err) {
+    console.log(err);
   }
 };
 
 module.exports.getAllProducers = async (event, context, callback) => {
   try {
-    const bpList = await eos.getProducers({ json: true });
+    const bpList = await eos.getProducers({ json: true }).then(res => res.rows);
     const cachedBpJsonFiles = await _dynamoGetAll(BLOCK_PRODUCER_TABLE);
-    console.log("CachedBpJsonFiles", cachedBpJsonFiles);
-    console.log("BPList", bpList);
-  } catch (e) {
-    console.log(e);
-  }
-  console.log('BPTABLE', BLOCK_PRODUCER_TABLE)
-
-  dynamoDb
-    .scan({ TableName: BLOCK_PRODUCER_TABLE })
-    .promise()
-    .then(data => {
-      let response = {
-        isBase64Encoded: false,
-        statusCode: 200,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify(data)
-      };
-      callback(null, response);
-    })
-    .catch(err => {
-      console.log("Error retrieving records from DynamoDB: ", err);
+    const responseData = bpList.map(bp => {
+      cachedBpJsonFiles.forEach(bpJson => {
+        if (bp.owner === bpJson.producer_account_name) {
+          bp.bpJson = bpJson;
+        }
+      });
+      return bp;
     });
+    let response = {
+      isBase64Encoded: false,
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify(responseData)
+    };
+
+    callback(null, response);
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 async function _reqBpJsonFiles(bpList) {
@@ -100,10 +96,10 @@ function _dynamoPut(tableName, bpAccountName, data) {
     })
     .promise()
     .then(data => {
-      console.log("Dynamo Put success!", data);
+      console.log("Dynamo Put Success!", data);
     })
     .catch(err => {
-      console.log("Dynampdb.put Error: ", err);
+      console.log("Dynamo Put Error: ", err);
     });
 }
 
@@ -112,12 +108,7 @@ async function _dynamoGetAll(tableName) {
     .scan({ TableName: tableName })
     .promise()
     .then(data => {
-      let response = {
-        isBase64Encoded: false,
-        statusCode: 200,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify(data)
-      };
+      return data.Items;
     })
     .catch(err => {
       console.log("Error retrieving records from DynamoDB: ", err);
