@@ -1,0 +1,62 @@
+service: hello-world
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:Scan
+      Resource:
+        - { "Fn::GetAtt": ["EosBlockProducersInfo", "Arn" ] }
+  environment:
+    BLOCK_PRODUCER_TABLE: { "Ref": "EosBlockProducersInfo" }
+
+functions:
+  cacheBlockProducerInfo:
+    handler: handler.saveName
+    environment: 
+      EOS_API_ENDPOINT: 'https://api.eosnewyork.io:443'
+      CHAIN_ID: 'aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906'
+    events:
+      - schedule: 
+        name: daily block producer cache
+        description: Make's api calls to retrieve bp.json from block producer's and caches in dynamoDB
+        rate: rate(24 hours)
+        enabled: false
+        input:
+          key1: null
+  getProducers:
+    handler: handler.getProducers
+    events:
+      - http:
+          path: producers
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    EosBlockProducersInfo:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: producer_account_name
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: producer_account_name
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+custom:
+  includeDependencies:
+    always:
+      - 'src/lib/**' # (optional) always include these globs and their dependencies
+
+plugins:
+  - serverless-plugin-include-dependencies
