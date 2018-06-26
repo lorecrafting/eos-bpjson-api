@@ -4,7 +4,6 @@
 
 const BLOCK_PRODUCER_TABLE = process.env.BLOCK_PRODUCER_TABLE;
 const EOS_API_ENDPOINT = process.env.EOS_API_ENDPOINT;
-const CHAIN_ID = process.env.CHAIN_ID;
 
 const AWS = require("aws-sdk");
 const request = require("request-promise-native");
