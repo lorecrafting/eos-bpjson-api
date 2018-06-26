@@ -12,24 +12,20 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const EosApi = require("eosjs-api");
 const eos = EosApi({ httpEndpoint: EOS_API_ENDPOINT });
 
-const ERROR_PARSING_BP_JSON =
-  "Error parsing bp.json - Either error with retrieval or formatting of bp.json";
-
 module.exports.cacheBpJson = async (event, context, callback) => {
   try {
     const bpList = await eos.getProducers({ json: true });
-    console.log("eos after executing", eos);
-    const bpJsonFiles = await _reqBpJsonFiles(bpList.rows);
+    const cachedResponse = await _cacheBpJsonFiles(bpList.rows);
     let response = {
       statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*"
       },
-      data: bpJsonFiles
+      data: { success: `${cachedResponse.length} items cached.` }
     };
     callback(null, response);
   } catch (err) {
-    console.log(err);
+    console.log("Error in cacheBpJson handler function: ", err);
   }
 };
 
@@ -54,32 +50,25 @@ module.exports.getAllProducers = async (event, context, callback) => {
 
     callback(null, response);
   } catch (err) {
-    console.log(err);
+    console.log("Error in getAllProducers handler function: ", err);
   }
 };
 
-async function _reqBpJsonFiles(bpList) {
+async function _cacheBpJsonFiles(bpList) {
   const reqList = bpList.map(bp => {
     const reqUrl = _joinHostResource(bp.url, "bp.json");
     const producerAccountName = bp.owner;
 
     return request(reqUrl)
-      .then(data => {
-        if (_isJsonString(data)) {
-          const parsedData = JSON.parse(data);
-          _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, parsedData);
-          return parsedData;
-        } else {
-          const errorObject = {
-            error: ERROR_PARSING_BP_JSON,
-            bpData: bp,
-            resData: data
-          };
-          return errorObject;
-        }
+      .then(resData => {
+        console.log("resDat***********a", resData);
+        return _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, resData);
       })
       .catch(err => {
-        console.log("Error: ", err);
+        console.log("Error in _cacheBpJsonFiles helper function: ", err);
+        const note = `Couldn't retrieve bp.json from ${reqUrl}. Please contact this Block Producer and ask them nicely to make their bp.json file available!`;
+        console.log('IN _cacheBEPSJONFILE ERROR', BLOCK_PRODUCER_TABLE);
+        return _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, note);
       });
   });
   return Promise.all(reqList);
@@ -91,7 +80,8 @@ function _dynamoPut(tableName, bpAccountName, data) {
       TableName: tableName,
       Item: {
         producer_account_name: bpAccountName,
-        data: JSON.stringify(data)
+        data: data,
+        timestamp: Date.now()
       }
     })
     .promise()

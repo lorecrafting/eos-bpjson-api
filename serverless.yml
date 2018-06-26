@@ -1,4 +1,4 @@
-service: hello-world
+service: eos-bpjson-api
 
 provider:
   name: aws
@@ -28,6 +28,8 @@ functions:
         enabled: true
         input:
           key1: null
+    timeout:
+      - 15
   getAllProducers:
     handler: handler.getAllProducers
     environment:
