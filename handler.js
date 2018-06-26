@@ -61,7 +61,6 @@ async function _cacheBpJsonFiles(bpList) {
 
     return request(reqUrl)
       .then(resData => {
-        console.log("resDat***********a", resData);
         return _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, resData);
       })
       .catch(err => {
