@@ -16,7 +16,8 @@ This service contains the following resources:
 ## Deployment
 1. Install package dependencies with `npm install`.
 2. Deploy Serverless service with `sls deploy`.
-3. Make sure to manually execute the `cacheBpJson` Lambda function once after deployment for initial load into DynamoDB table.
+3. Make sure to manually execute the `cacheBpJson` Lambda function once after deployment for initial load into DynamoDB tab
+4. After the deployment succeeds, the API Gateway endpoint will be reported in the terminal.
 
 
 ## Notes
