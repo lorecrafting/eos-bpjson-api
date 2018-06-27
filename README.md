@@ -3,7 +3,7 @@ A service that caches EOS Block Prodcuer's bp.json files in DynamoDB every 24 ho
 
 ## Summary
 This service contains the following resources:
-1. `cacheBPjson` Lambda function that executes once every 24 hours to scrape the BP.json of top 50 Block Producer's by count and caches into a dynamoDb table.
+1. `cacheBpJson` Lambda function that executes once every 24 hours to scrape the BP.json of top 50 Block Producer's by count and caches into a dynamoDb table.
 2. `getAllProducers` Lambda function that retrieves cached bp.json files with updated vote counts appended to the response.
 3. A public endpoint using AWS API Gateway.
 4. DynamoDB table that holds the cached bp.json files
@@ -16,7 +16,8 @@ This service contains the following resources:
 ## Deployment
 1. Install package dependencies with `npm install`.
 2. Deploy Serverless service with `sls deploy`.
-3. Make sure to manually execute the `cacheBpJson` Lambda function once after deployment for initial load into DynamoDB table.
+3. Make sure to manually execute the `cacheBpJson` Lambda function once after deployment for initial load into DynamoDB tab
+4. After the deployment succeeds, the API Gateway endpoint will be reported in the terminal.
 
 
 ## Notes

@@ -65,7 +65,7 @@ async function _cacheBpJsonFiles(bpList) {
       .catch(err => {
         console.log("Error in _cacheBpJsonFiles helper function: ", err);
         const note = `Couldn't retrieve bp.json from ${reqUrl}. Please contact this Block Producer and ask them nicely to make their bp.json file available!`;
-        console.log('IN _cacheBEPSJONFILE ERROR', BLOCK_PRODUCER_TABLE);
+        console.log("IN _cacheBEPSJONFILE ERROR", BLOCK_PRODUCER_TABLE);
         return _dynamoPut(BLOCK_PRODUCER_TABLE, producerAccountName, note);
       });
   });
