@@ -2,11 +2,11 @@
 A service that caches EOS Block Prodcuer's bp.json files in DynamoDB every 24 hours and exposes an endpoint to retrieve the data using the Serverless Framework.
 
 ## Summary
-This service contains the following resources:
-1. `cacheBpJson` Lambda function that executes once every 24 hours to scrape the BP.json of top 50 Block Producer's by count and caches into a dynamoDb table.
-2. `getAllProducers` Lambda function that retrieves cached bp.json files with updated vote counts appended to the response.
-3. A public endpoint using AWS API Gateway.
-4. DynamoDB table that holds the cached bp.json files
+This service uses the following AWS resources:
+1. `cacheBpJson` Lambda function that caches the bp.json file of top 50 block producer's by vote count.
+2. `getAllProducers` Lambda function that retrieves cached bp.json files with updated vote counts appended to response.
+3. A public endpoint using `AWS API Gateway`.
+4. `DynamoDB` table that holds the cached bp.json files
 
 ## Requirements
 - Node 8.10 or above
