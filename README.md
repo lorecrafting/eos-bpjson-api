@@ -1,5 +1,5 @@
 # eos-bpjson-api
-A service that caches EOS Block Prodcuer's bp.json files in DynamoDB every 24 hours and exposes an endpoint to retrieve the data using the Serverless Framework.
+## A service that caches EOS Block Prodcuer's bp.json files in DynamoDB every 24 hours and exposes an endpoint to retrieve the data using the Serverless Framework.
 
 ## Summary
 This service uses the following AWS resources:
